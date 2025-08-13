@@ -1,0 +1,29 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo "Logeando en Amazon ECR..."
+      - $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
+  build:
+    commands:
+      - echo "Construyendo la imagen Docker para la API..."
+      - cd apiFestivos
+      - docker build -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/api-festivos-tt:$CODEBUILD_BUILD_NUMBER .
+      - cd ..
+      - echo "Construyendo la imagen Docker para el Frontend..."
+      - cd frontEndFestivos
+      - docker build -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/frontend-festivos-tt:$CODEBUILD_BUILD_NUMBER .
+      - cd ..
+  post_build:
+    commands:
+      - echo "Empujando la imagen de la API a ECR..."
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/api-festivos-tt:$CODEBUILD_BUILD_NUMBER
+      - echo "Empujando la imagen del Frontend a ECR..."
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/frontend-festivos-tt:$CODEBUILD_BUILD_NUMBER
+      - echo "Generando artifact.json para el despliegue en ECS..."
+      - printf '[{"name":"api-festivos-tt-container","imageUri":"%s"}, {"name":"frontend-festivos-tt-container","imageUri":"%s"}]' $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/api-festivos-tt:$CODEBUILD_BUILD_NUMBER $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/frontend-festivos-tt:$CODEBUILD_BUILD_NUMBER > artifact.json
+
+artifacts:
+  files:
+    - artifact.json
